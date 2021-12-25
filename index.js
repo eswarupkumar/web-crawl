@@ -1,11 +1,24 @@
+"use strict";
+const express = require("express");
 const cheerio = require("cheerio");
 const axios = require("axios");
 const mongoose = require("mongoose");
+const autocannon = require("autocannon");
 require("dotenv").config({ path: "./.env" });
+
+autocannon(
+  {
+    url: "http://localhost:3000",
+    connections: 5,
+    duration: 100000,
+  },
+  console.log
+);
 
 //Question Model import
 const Question = require("./model.js");
 
+const app = express();
 //Database Connection
 mongoose.connect(
   `mongodb+srv://${process.env.MONGO_DB_USER}:${process.env.MONGO_DB_PASSWORD}@cluster0.eruka.mongodb.net/${process.env.MONGO_DB_DATABASE}?retryWrites=true&w=majority`,
@@ -24,17 +37,7 @@ function url() {
   return `https://stackoverflow.com/questions?tab=newest&page=${page_count}`;
 }
 
-async function main() {
-  while (true) {
-    await api_hit();
-    await api_hit();
-    await api_hit();
-    await api_hit();
-    await api_hit();
-  }
-}
-
-async function api_hit() {
+app.get("/", async function (req, res) {
   await axios(url())
     .then((result) => {
       console.log("Page: ", page_count);
@@ -55,12 +58,9 @@ async function api_hit() {
           upvoteCount: votes,
           answerCount: answers,
         });
-        // console.log(link);
-        // console.log(votes);
-        // console.log(answers);
       });
-      //Adding data to DB
-      await Question.insertMany(arr)
+      // Adding data to DB
+      Question.insertMany(arr)
         .then((result) => {
           console.log("Successfull");
         })
@@ -68,11 +68,12 @@ async function api_hit() {
           console.log(err);
         });
       page_count = page_count + 1;
-      // console.log(url());
+      res.status(200).json({ msg: "Success" });
     })
     .catch((err) => {
       console.log(err);
+      res.status(400).json({ msg: "Failed" });
     });
-}
+});
 
-main();
+app.listen(3000, () => console.log("Listening on port 3000 "));
